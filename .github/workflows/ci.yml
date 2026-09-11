@@ -25,7 +25,7 @@ jobs:
       DATABASE_URL: postgresql+psycopg://ledgerly:ci-only-password@localhost:5432/ledgerly_test
       JWT_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
