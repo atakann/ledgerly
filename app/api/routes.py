@@ -1,9 +1,9 @@
 """HTTP layer. The request comes IN here and the response goes OUT here.
 
-  POST /auth/login                public   -> 200 TokenOut
-  POST /invoices                  bearer   -> 201 InvoiceOut
-  GET  /invoices?status=open      bearer   -> 200 list of InvoiceOut
-  POST /invoices/{id}/payments    bearer   -> 201 PaymentOut        (the main request)
+  POST /auth/login                        public          -> 200 TokenOut
+  POST /invoices                          bearer, admin   -> 201 InvoiceOut
+  GET  /invoices?status=open&user_id=     bearer          -> 200 list of InvoiceOut
+  POST /invoices/{id}/payments            bearer          -> 201 PaymentOut   (the main request)
 
 The router knows HTTP: paths, status codes, headers, schemas. It holds no business rule and
 no SQL. Rules live in app/domain/service.py, SQL in app/infra/repository.py.
@@ -50,6 +50,7 @@ Caller = Annotated[Principal, Depends(current_user)]  # 401 if the token is miss
 # Error bodies per status, so /docs shows them. The shape is ErrorOut for all of them.
 UNAUTHORIZED = {401: {"model": ErrorOut}}
 PROTECTED = {401: {"model": ErrorOut}, 422: {"model": ErrorOut}}
+ADMIN_ERRORS = {**PROTECTED, 403: {"model": ErrorOut}, 404: {"model": ErrorOut}}
 PAYMENT_ERRORS = {
     **PROTECTED,
     403: {"model": ErrorOut},
@@ -72,19 +73,25 @@ def login(body: LoginIn, request: Request, session: DbSession) -> TokenOut:
     return TokenOut(access_token=auth.issue(user), expires_in=auth.ttl_seconds)
 
 
-@router.post("/invoices", status_code=201, response_model=InvoiceOut, responses=PROTECTED)
+@router.post("/invoices", status_code=201, response_model=InvoiceOut, responses=ADMIN_ERRORS)
 def create_invoice(body: InvoiceIn, caller: Caller, service: Service) -> InvoiceOut:
-    invoice = service.create_invoice(caller, body.amount_cents, body.currency, body.due_at)
+    """Admin only: issue an invoice to a customer."""
+    invoice = service.create_invoice(
+        caller, body.customer_id, body.amount_cents, body.currency, body.due_at
+    )
     return InvoiceOut.from_domain(invoice)
 
 
-@router.get("/invoices", response_model=list[InvoiceOut], responses=PROTECTED)
+@router.get("/invoices", response_model=list[InvoiceOut], responses=ADMIN_ERRORS)
 def list_invoices(
     caller: Caller,
     service: Service,
     status: Annotated[InvoiceStatus | None, Query()] = None,
+    user_id: Annotated[int | None, Query(description="Admin only: another customer")] = None,
 ) -> list[InvoiceOut]:
-    return [InvoiceOut.from_domain(i) for i in service.list_invoices(caller, status)]
+    """Own invoices. An admin may pass user_id to see a customer's invoices."""
+    invoices = service.list_invoices(caller, status, user_id)
+    return [InvoiceOut.from_domain(i) for i in invoices]
 
 
 @router.post(

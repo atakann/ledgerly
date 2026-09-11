@@ -38,6 +38,7 @@ class TokenOut(BaseModel):
 
 
 class InvoiceIn(BaseModel):
+    customer_id: int
     amount_cents: Cents
     currency: Currency
     due_at: AwareDatetime

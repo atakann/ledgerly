@@ -33,7 +33,7 @@ def main() -> None:
         alice = uow.users.add("alice@example.com", hash_password(DEMO_PASSWORD), {"customer"})
         uow.users.add("admin@example.com", hash_password(DEMO_PASSWORD), {"admin"})
         due = datetime.now(UTC) + timedelta(days=30)
-        invoice = uow.invoices.add(alice.id, 10_000, "EUR", due)
+        invoice = uow.invoices.add(alice.id, 10_000, "EUR", due)  # as the admin would
     print(f"users: alice@example.com, admin@example.com (password {DEMO_PASSWORD})")
     print(f"invoice {invoice.id}: 100.00 EUR, open, owned by alice")
 

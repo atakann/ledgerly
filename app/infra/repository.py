@@ -59,6 +59,10 @@ class UserRepository:
         self._session.flush()  # assigns row.id
         return _user(row)
 
+    def get(self, user_id: int) -> User | None:
+        row = self._session.get(UserRow, user_id)
+        return _user(row) if row is not None else None
+
     def get_by_email(self, email: str) -> User | None:
         row = self._session.scalar(select(UserRow).where(UserRow.email == email))
         return _user(row) if row is not None else None

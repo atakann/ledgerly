@@ -42,8 +42,23 @@ from app.domain.ports import UnitOfWork
 PAYMENT_APPLIED = "payment.applied"
 
 
+# Authorization. Three actions, two roles:
+#   issue an invoice          admin only
+#   view invoices             a customer sees their own; an admin may view any customer's
+#   pay an invoice            the owner, or an admin
+
+
+def assert_admin(principal: Principal) -> None:
+    if not principal.is_admin:
+        raise Forbidden("Admin role required.", code="admin_required")
+
+
+def assert_can_view(principal: Principal, user_id: int) -> None:
+    if user_id != principal.id and not principal.is_admin:
+        raise Forbidden("You may not view these invoices.", code="not_invoice_owner")
+
+
 def assert_can_pay(principal: Principal, invoice: Invoice) -> None:
-    """Authorization. The owner may pay their own invoice. An admin may pay any invoice."""
     if invoice.user_id != principal.id and not principal.is_admin:
         raise Forbidden("You may not pay this invoice.", code="not_invoice_owner")
 
@@ -63,14 +78,28 @@ class InvoiceService:
         self._uow = uow
 
     def create_invoice(
-        self, principal: Principal, amount_cents: int, currency: str, due_at: datetime
+        self,
+        principal: Principal,
+        customer_id: int,
+        amount_cents: int,
+        currency: str,
+        due_at: datetime,
     ) -> Invoice:
+        """An admin issues an invoice to a customer."""
+        assert_admin(principal)
         with self._uow.transaction():
-            return self._uow.invoices.add(principal.id, amount_cents, currency, due_at)
+            if self._uow.users.get(customer_id) is None:
+                raise NotFound("Customer not found.", code="customer_not_found")
+            return self._uow.invoices.add(customer_id, amount_cents, currency, due_at)
 
-    def list_invoices(self, principal: Principal, status: InvoiceStatus | None) -> list[Invoice]:
+    def list_invoices(
+        self, principal: Principal, status: InvoiceStatus | None, user_id: int | None = None
+    ) -> list[Invoice]:
+        """Own invoices by default. An admin may pass another user's id."""
+        owner_id = principal.id if user_id is None else user_id
+        assert_can_view(principal, owner_id)
         with self._uow.transaction():
-            return self._uow.invoices.list_for_user(principal.id, status)
+            return self._uow.invoices.list_for_user(owner_id, status)
 
     def pay(
         self,
