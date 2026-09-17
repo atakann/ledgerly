@@ -27,8 +27,8 @@ Cents = Annotated[int, Field(gt=0, le=1_000_000_000_000)]
 
 
 class LoginIn(BaseModel):
-    email: Email
-    password: Annotated[str, Field(min_length=1, max_length=128)]
+    email: Annotated[Email, Field(examples=["alice@example.com"])]
+    password: Annotated[str, Field(min_length=1, max_length=128, examples=["demo-password"])]
 
 
 class TokenOut(BaseModel):
@@ -38,10 +38,10 @@ class TokenOut(BaseModel):
 
 
 class InvoiceIn(BaseModel):
-    customer_id: int
-    amount_cents: Cents
-    currency: Currency
-    due_at: AwareDatetime
+    customer_id: Annotated[int, Field(examples=[1])]
+    amount_cents: Annotated[Cents, Field(examples=[10_000])]
+    currency: Annotated[Currency, Field(examples=["EUR"])]
+    due_at: Annotated[AwareDatetime, Field(examples=["2026-10-15T00:00:00Z"])]
 
 
 class InvoiceOut(BaseModel):
@@ -59,8 +59,8 @@ class InvoiceOut(BaseModel):
 
 
 class PaymentIn(BaseModel):
-    amount_cents: Cents
-    currency: Currency
+    amount_cents: Annotated[Cents, Field(examples=[4_000])]
+    currency: Annotated[Currency, Field(examples=["EUR"])]
 
 
 class PaymentOut(BaseModel):
