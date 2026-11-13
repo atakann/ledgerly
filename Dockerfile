@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.15-slim
 WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Install dependencies first, so a code change does not re-install them.
